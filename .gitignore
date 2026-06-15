@@ -1,0 +1,22 @@
+# macOS / editor cruft
+.DS_Store
+
+# Python
+backend/.venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Local runtime data
+storage/
+
+# Packaged archives
+*.zip
+
+# Historical packaged baseline kept locally for reference
+ab-test-workbench-mvp-no-anova/
