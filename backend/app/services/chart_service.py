@@ -132,7 +132,7 @@ def render_metric_chart(row: pd.Series, output_path: Path) -> None:
     y = 220
     for key, value in details:
         d.text((765, y), key, fill=MUTED, font=font(20))
-        draw_fit_text(d, str(value), (940, y), max_width=160, fill=TEXT, base_size=22, bold=True)
+        draw_right_fit_text(d, str(value), (1090, y), max_width=170, fill=TEXT, base_size=22, bold=True)
         y += 48
 
     note = str(row.get("note", ""))
@@ -171,13 +171,13 @@ def draw_categorical_chart(d: ImageDraw.ImageDraw, row: pd.Series) -> None:
 
     d.rounded_rectangle((730, 190, 1120, 560), radius=18, fill=WHITE, outline=LINE, width=2)
     d.text((765, 220), "p", fill=MUTED, font=font(20))
-    draw_fit_text(d, str(row.get("p_value", "")), (940, 220), max_width=150, fill=TEXT, base_size=22, bold=True)
+    draw_right_fit_text(d, str(row.get("p_value", "")), (1090, 220), max_width=150, fill=TEXT, base_size=22, bold=True)
     d.text((765, 268), "Chi-square", fill=MUTED, font=font(20))
-    draw_fit_text(d, str(row.get("chi_square", "")), (940, 268), max_width=150, fill=TEXT, base_size=22, bold=True)
+    draw_right_fit_text(d, str(row.get("chi_square", "")), (1090, 268), max_width=150, fill=TEXT, base_size=22, bold=True)
     d.text((765, 316), "df", fill=MUTED, font=font(20))
-    draw_fit_text(d, str(row.get("df", "")), (940, 316), max_width=150, fill=TEXT, base_size=22, bold=True)
+    draw_right_fit_text(d, str(row.get("df", "")), (1090, 316), max_width=150, fill=TEXT, base_size=22, bold=True)
     d.text((765, 364), "Sig", fill=MUTED, font=font(20))
-    draw_fit_text(d, str(row.get("significant", "")), (940, 364), max_width=150, fill=TEXT, base_size=22, bold=True)
+    draw_right_fit_text(d, str(row.get("significant", "")), (1090, 364), max_width=150, fill=TEXT, base_size=22, bold=True)
 
     legend_y = 430
     for index, category in enumerate(categories[:6]):
@@ -310,6 +310,29 @@ def draw_fit_text(
     if text_width(d, text, current_font) > max_width:
         text = ellipsize(d, text, current_font, max_width)
     d.text(xy, text, fill=fill, font=current_font)
+    return text
+
+
+def draw_right_fit_text(
+    d: ImageDraw.ImageDraw,
+    text: str,
+    xy: tuple[int, int],
+    max_width: int,
+    fill: tuple[int, int, int],
+    base_size: int,
+    bold: bool = False,
+    min_size: int = 13,
+) -> str:
+    text = normalize_text(text)
+    size = base_size
+    current_font = font(size, bold)
+    while size > min_size and text_width(d, text, current_font) > max_width:
+        size -= 1
+        current_font = font(size, bold)
+    if text_width(d, text, current_font) > max_width:
+        text = ellipsize(d, text, current_font, max_width)
+    d.text(xy, text, fill=fill, font=current_font, anchor="ra")
+    return text
 
 
 def draw_centered_fit_text(
