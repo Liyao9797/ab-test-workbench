@@ -19,6 +19,12 @@
 上传 Excel -> 识别 sheet 和表头 -> 选择分组字段和指标字段 -> 执行显著性分析 -> 生成图表 -> 下载结果
 ```
 
+## 产品界面预览
+
+通过 demo 数据可以在本地快速跑完整流程：生成样例 Excel、自动识别字段、执行显著性分析，并在同一页面查看 Gate、PM 结论和图表输出。
+
+![A/B Test Workbench product interface](./docs/assets/readme/product-workbench.png)
+
 ## 功能亮点
 
 - **Excel 导入**：支持 `.xlsx` / `.xlsm` 上传，自动读取 sheet、识别表头、展示字段类型和样例值。
@@ -31,7 +37,7 @@
 
 ## 示例图表
 
-仓库中保留了部分生成图表，便于快速理解输出形态：
+仓库中保留了部分生成图表，便于快速理解分析输出形态：
 
 ![Primary metric chart](./docs/assets/readme/primary-metric.png)
 

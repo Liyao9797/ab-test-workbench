@@ -82,37 +82,49 @@ def render_data_quality_gate(output_path: Path) -> None:
     draw_fit_text(draw, "Data Quality Gate", (70, 52), 1260, TEXT, 44, bold=True)
     draw_fit_text(draw, "Overall status: PASS_WITH_WARNING", (72, 122), 1260, MUTED, 26)
 
-    draw.rounded_rectangle((90, 210, 1310, 395), radius=28, fill=(255, 249, 238), outline=(240, 85, 15), width=4)
-    draw_fit_text(draw, "PASS_WITH_WARNING", (140, 270), 1060, (240, 85, 15), 48, bold=True)
+    draw.rounded_rectangle((90, 205, 1310, 370), radius=28, fill=(255, 249, 238), outline=(240, 85, 15), width=4)
+    draw_fit_text(draw, "PASS_WITH_WARNING", (140, 260), 1060, (240, 85, 15), 48, bold=True)
     draw_fit_text(
         draw,
         "Hard validation checks passed; warning items require PM attention.",
-        (140, 345),
+        (140, 332),
         1080,
         TEXT,
         26,
     )
 
     checks = [
-        ("PASS", "lt_days_gte_login_days: violations=0"),
-        ("PASS", "feature_click_requires_exposure: violations=0"),
-        ("PASS", "inactive_rows_zeroed: violations=0"),
-        ("PASS", "d1_retention_business_range: group_a=63.75%, group_b=63.50%; expected=60%-80%"),
-        ("WARNING", "d7_retention_business_range: group_a=36.75%, group_b=37.50%; expected=13%-22%"),
-        ("PASS", "arpu_business_cap: group_a=1.24, group_b=1.33; max=3.00"),
-        ("PASS", "avg_ltv_amount_gte_arpu: group_a ltv=2.02, arpu=1.24; group_b ltv=2.09, arpu=1.33"),
+        ("PASS", "LT days >= login days", "violations=0"),
+        ("PASS", "Click requires exposure", "violations=0"),
+        ("PASS", "Inactive rows zeroed", "violations=0"),
+        ("PASS", "D1 retention range", "A=63.75%, B=63.50%; target=60%-80%"),
+        ("WARNING", "D7 retention range", "A=36.75%, B=37.50%; target=13%-22%"),
+        ("PASS", "ARPU business cap", "A=1.24, B=1.33; max=3.00"),
+        ("PASS", "LTV amount >= ARPU", "A ltv=2.02, arpu=1.24; B ltv=2.09, arpu=1.33"),
     ]
 
-    y = 465
-    row_gap = 56
-    for status, message in checks:
+    table_x0, table_y0, table_x1 = 95, 430, 1305
+    row_h = 52
+    status_w = 175
+    check_w = 375
+    table_h = 44 + len(checks) * row_h
+    draw.rounded_rectangle((table_x0, table_y0, table_x1, table_y0 + table_h), radius=16, fill=WHITE, outline=(220, 226, 232), width=2)
+    draw.rectangle((table_x0 + 1, table_y0 + 1, table_x1 - 1, table_y0 + 44), fill=(244, 247, 248))
+    draw.text((table_x0 + 32, table_y0 + 14), "Status", fill=MUTED, font=font(18, True))
+    draw.text((table_x0 + status_w + 28, table_y0 + 14), "Check", fill=MUTED, font=font(18, True))
+    draw.text((table_x0 + status_w + check_w + 28, table_y0 + 14), "Result", fill=MUTED, font=font(18, True))
+
+    for index, (status, check, result) in enumerate(checks):
+        y = table_y0 + 44 + index * row_h
+        if index:
+            draw.line((table_x0, y, table_x1, y), fill=(229, 234, 238), width=1)
         is_warning = status == "WARNING"
         color = (240, 85, 15) if is_warning else (25, 170, 80)
         fill = (255, 248, 239) if is_warning else (239, 252, 244)
-        draw.rounded_rectangle((105, y, 265, y + 44), radius=10, fill=fill, outline=color, width=2)
-        draw.text((185, y + 22), status, fill=color, font=font(22, True), anchor="mm")
-        draw_fit_text(draw, message, (315, y + 8), 940, TEXT, 21)
-        y += row_gap
+        draw.rounded_rectangle((table_x0 + 24, y + 10, table_x0 + 138, y + 39), radius=8, fill=fill, outline=color, width=2)
+        draw.text((table_x0 + 81, y + 25), status, fill=color, font=font(16, True), anchor="mm")
+        draw_fit_text(draw, check, (table_x0 + status_w + 28, y + 14), check_w - 48, TEXT, 19, bold=is_warning)
+        draw_fit_text(draw, result, (table_x0 + status_w + check_w + 28, y + 14), 610, TEXT, 18)
 
     draw_fit_text(
         draw,

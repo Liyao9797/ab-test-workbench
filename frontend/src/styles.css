@@ -676,6 +676,18 @@ h2 {
   border-top: 1px solid rgba(23, 32, 38, 0.08);
 }
 
+.metric-result-header span,
+.metric-result-row span,
+.anova-result-header span,
+.anova-result-row span {
+  min-width: 0;
+}
+
+.metric-result-row span {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
 .metric-result-row span:first-child,
 .anova-result-row span:first-child,
 .anova-result-row span:nth-child(2) {
