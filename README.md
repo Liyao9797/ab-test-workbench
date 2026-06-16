@@ -38,12 +38,12 @@
 
 通过 demo 数据可以在本地快速跑完整流程：生成样例 Excel、自动识别字段、执行显著性分析，并在同一页面查看 Gate、PM 结论和图表输出。
 
-![A/B Test Workbench product interface](./docs/assets/readme/product-workbench.png)
+![A/B Test Workbench product interface](./docs/assets/readme/product-workbench.png?v=20260616)
 
 ## 功能亮点
 
 - **Excel 导入**：支持 `.xlsx` / `.xlsm` 上传，自动读取 sheet、识别表头、展示字段类型和样例值。
-- **分析配置**：支持 1 个分组字段、1 到 5 个指标字段，以及最多 2 个可选分层字段。
+- **分析配置**：支持 1 个分组字段和 1 到 5 个指标字段。
 - **显著性分析**：支持二元指标、连续数值指标和类别指标，输出 p 值、置信区间、差异和相对提升。
 - **质量 Gate**：输出 `PASS`、`PASS_WITH_WARNING` 或 `FAIL`，并展示数据质量检查和 WARNING。
 - **PM 可读结论**：把统计结果转成适合产品/运营复盘的文字结论。
@@ -54,9 +54,9 @@
 
 仓库中保留了部分生成图表，便于快速理解分析输出形态：
 
-![Primary metric chart](./docs/assets/readme/primary-metric.png)
+![Primary metric chart](./docs/assets/readme/primary-metric.png?v=20260616)
 
-![Data quality gate chart](./docs/assets/readme/data-quality-gate.png)
+![Data quality gate chart](./docs/assets/readme/data-quality-gate.png?v=20260616)
 
 ## 技术栈
 
@@ -129,7 +129,7 @@ http://127.0.0.1:5173
 
 1. 启动后端和前端。
 2. 打开 `http://127.0.0.1:5173`，确认右上角显示 `API 已连接`。
-3. 点击页面左侧的 `生成 demo`，自动生成示例实验数据。
+3. 点击页面左侧的 `使用 demo 数据`，自动生成示例实验数据。
 4. 点击 `Step 2 分析 Excel` 查看 Gate、p 值、置信区间和 PM 结论。
 5. 点击 `Step 3 生成图表` 查看指标图、汇总图和完整图表合集。
 
