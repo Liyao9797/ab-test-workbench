@@ -38,7 +38,7 @@
 
 通过 demo 数据可以在本地快速跑完整流程：生成样例 Excel、自动识别字段、执行显著性分析，并在同一页面查看 Gate、PM 结论和图表输出。
 
-![A/B Test Workbench product interface](./docs/assets/readme/product-workbench.png?v=20260616)
+![A/B Test Workbench product interface](./docs/assets/readme/product-workbench-20260616.png)
 
 ## 功能亮点
 
@@ -54,9 +54,9 @@
 
 仓库中保留了部分生成图表，便于快速理解分析输出形态：
 
-![Primary metric chart](./docs/assets/readme/primary-metric.png?v=20260616)
+![Primary metric chart](./docs/assets/readme/primary-metric-20260616.png)
 
-![Data quality gate chart](./docs/assets/readme/data-quality-gate.png?v=20260616)
+![Data quality gate chart](./docs/assets/readme/data-quality-gate-20260616.png)
 
 ## 技术栈
 
