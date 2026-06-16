@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
   AlertTriangle,
   BarChart3,
-  Bug,
   ChevronLeft,
   ChevronRight,
   X,
@@ -86,13 +85,6 @@ const resultRows = [
   ["Step 4", "生成图表", "最多 5 张指标图 + 汇总图 + 完整图"]
 ];
 
-const workflowCards = [
-  ["导入", "Excel / Demo"],
-  ["识别", "Sheet / Header"],
-  ["分析", "Gate / p-value"],
-  ["沉淀", "Workbook / Charts"]
-];
-
 function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [apiOnline, setApiOnline] = useState(false);
@@ -100,7 +92,6 @@ function App() {
   const [headers, setHeaders] = useState<HeaderDetection | null>(null);
   const [selectedSheet, setSelectedSheet] = useState("");
   const [groupField, setGroupField] = useState("");
-  const [anovaFactorFields, setAnovaFactorFields] = useState<string[]>([]);
   const [metricFields, setMetricFields] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
@@ -119,16 +110,6 @@ function App() {
       .catch(() => setApiOnline(false));
   }, []);
 
-  const statusItems = useMemo(
-    () => [
-      { label: "当前文件", value: upload?.filename ?? "未上传", tone: upload ? "ready" : "idle" },
-      { label: "分析状态", value: isAnalyzing ? "分析中" : analysis ? "分析完成" : "未分析", tone: analysis ? "ready" : "idle" },
-      { label: "图表状态", value: isPlotting ? "生成中" : charts ? "生成完成" : "未生成", tone: charts ? "ready" : "idle" },
-      { label: "Gate", value: analysis?.gate_status ?? "待检查", tone: analysis?.gate_status === "PASS" ? "ready" : analysis ? "warn" : "idle" }
-    ],
-    [analysis, charts, isAnalyzing, isPlotting, upload]
-  );
-
   const canAnalyze = Boolean(upload && headers && groupField && metricFields.length > 0 && metricFields.length <= 5);
   const canPlot = Boolean(analysis && analysis.gate_status !== "FAIL");
 
@@ -141,7 +122,6 @@ function App() {
     setUpload(null);
     setHeaders(null);
     setGroupField("");
-    setAnovaFactorFields([]);
     setMetricFields([]);
     setAnalysis(null);
     setCharts(null);
@@ -164,7 +144,6 @@ function App() {
       const headerPayload = await detectHeaders(uploadPayload.upload_id, uploadPayload.selected_sheet);
       setHeaders(headerPayload);
       setGroupField(defaultGroupField(headerPayload));
-      setAnovaFactorFields([]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "上传失败");
     } finally {
@@ -179,7 +158,6 @@ function App() {
     setUpload(null);
     setHeaders(null);
     setGroupField("");
-    setAnovaFactorFields([]);
     setMetricFields([]);
     setAnalysis(null);
     setCharts(null);
@@ -196,8 +174,7 @@ function App() {
       const headerPayload = await detectHeaders(demoUpload.upload_id, demoUpload.selected_sheet);
       setHeaders(headerPayload);
       setGroupField(defaultGroupField(headerPayload));
-      setMetricFields(defaultChiSquareMetrics(headerPayload));
-      setAnovaFactorFields([]);
+      setMetricFields(defaultDemoNumberMetrics(headerPayload));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "生成卡方检验样例失败");
     } finally {
@@ -210,7 +187,6 @@ function App() {
     setSelectedSheet(nextSheet);
     setHeaders(null);
     setGroupField("");
-    setAnovaFactorFields([]);
     setMetricFields([]);
     setAnalysis(null);
     setCharts(null);
@@ -222,7 +198,6 @@ function App() {
       const headerPayload = await detectHeaders(upload.upload_id, nextSheet);
       setHeaders(headerPayload);
       setGroupField(defaultGroupField(headerPayload));
-      setAnovaFactorFields([]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "表头识别失败");
     }
@@ -232,14 +207,6 @@ function App() {
     setMetricFields((current) => {
       if (current.includes(fieldName)) return current.filter((field) => field !== fieldName);
       if (current.length >= 5) return current;
-      return [...current, fieldName];
-    });
-  }
-
-  function toggleAnovaFactor(fieldName: string) {
-    setAnovaFactorFields((current) => {
-      if (current.includes(fieldName)) return current.filter((field) => field !== fieldName);
-      if (current.length >= 2) return current;
       return [...current, fieldName];
     });
   }
@@ -262,7 +229,7 @@ function App() {
           sheet_name: selectedSheet,
           group_field: groupField,
           metric_fields: orderedMetrics,
-          anova_factor_fields: orderMetricsBySheet(headers, anovaFactorFields)
+          anova_factor_fields: []
         })
       });
       if (!response.ok) throw new Error(await readError(response));
@@ -356,14 +323,14 @@ function App() {
       <section className="top-band">
         <div>
           <p className="eyebrow">Local A/B Test Workbench</p>
-          <h1>产品增长实验分析工作台</h1>
+          <h1>A/B实验显著性分析</h1>
           <p className="hero-copy">
-            把 Excel 实验数据转成可解释的显著性结论、质量关口和可分享图表，适合本地复盘、面试演示和业务数据保护场景。
+            上传 Excel 后自选自变量与因变量，分析指标显著性并绘制可分享图表。
           </p>
           <div className="hero-tags" aria-label="能力标签">
-            <span>Excel 导入</span>
-            <span>字段识别</span>
-            <span>显著性检验</span>
+            <span>上传 Excel</span>
+            <span>单一自变量</span>
+            <span>因变量选择</span>
             <span>图表输出</span>
           </div>
         </div>
@@ -373,185 +340,137 @@ function App() {
         </div>
       </section>
 
-      <section className="status-grid" aria-label="状态概览">
-        {statusItems.map((item) => (
-          <div className={`status-cell ${item.tone}`} key={item.label}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </section>
-
-      <section className="workspace-grid">
-        <aside className="config-panel">
-          <div className="panel-heading">
+      <section className="step-layout horizontal-flow" aria-label="A/B 测试分析流程">
+        <section className="step-card step-card-primary step-upload">
+          <div className="step-heading">
             <FileSpreadsheet size={20} />
             <div>
               <p className="step-label">Step 1</p>
-              <h2>文件与字段</h2>
+              <h2>上传 Excel</h2>
             </div>
-          </div>
-          <div className="quick-start-card">
-            <div>
-              <p className="step-label">Quick start</p>
-              <strong>没有 Excel 也能演示完整流程</strong>
-              <span>一键生成 demo，自动识别字段并预选类别指标。</span>
-            </div>
-            <button className="secondary-button compact" type="button" onClick={() => void handleGenerateChiSquareDemo()} disabled={isGeneratingDemo}>
-              <FlaskConical size={16} />
-              {isGeneratingDemo ? "生成中" : "生成 demo"}
-            </button>
-          </div>
-          <input
-            ref={fileInputRef}
-            className="hidden-input"
-            type="file"
-            accept=".xlsx,.xlsm"
-            onChange={handleFileChange}
-          />
-          <button className="upload-zone" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-            <Upload size={22} />
-            <span>{isUploading ? "上传并识别中" : "上传 Excel"}</span>
-            <small>.xlsx / .xlsm</small>
-          </button>
-
-          {error && <div className="error-banner">{error}</div>}
-
-          {upload && (
-            <div className="file-summary">
-              <strong>{upload.filename}</strong>
-              <span>{formatBytes(upload.file_size)}</span>
-            </div>
-          )}
-
-          {upload && (
-            <div className="field-block">
-              <label>Sheet</label>
-              <select value={selectedSheet} onChange={(event) => void handleSheetChange(event.target.value)}>
-                {upload.sheets.map((sheet) => (
-                  <option key={sheet} value={sheet}>
-                    {sheet}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="field-block">
-            <label>分组字段</label>
-            <select
-              value={groupField}
-              disabled={!headers}
-              onChange={(event) => {
-                setGroupField(event.target.value);
-                setAnovaFactorFields((current) => current.filter((field) => field !== event.target.value));
-              }}
-            >
-              <option value="">选择自变量</option>
-              {headers?.columns.map((column) => (
-                <option key={column.name} value={column.name}>
-                  {column.name}
-                </option>
-              ))}
-            </select>
+            <span className={upload ? "step-state ready" : "step-state"}>{upload ? "已选择文件" : "从这里开始"}</span>
           </div>
 
-          <div className="field-block">
-            <label>ANOVA 自变量（可选）</label>
-            <div className="factor-hint">默认包含分组字段；这里最多再选 2 个分类因子，用于主效应和交互作用检验。</div>
-            <div className="metric-list compact">
-              {headers ? (
-                headers.columns.map((column) => (
-                  <label className="metric-option" key={column.name}>
-                    <input
-                      type="checkbox"
-                      checked={anovaFactorFields.includes(column.name)}
-                      disabled={
-                        column.name === groupField ||
-                        metricFields.includes(column.name) ||
-                        (!anovaFactorFields.includes(column.name) && anovaFactorFields.length >= 2)
-                      }
-                      onChange={() => toggleAnovaFactor(column.name)}
-                    />
-                    <span>{column.name}</span>
-                    <em>{column.dtype}</em>
-                  </label>
-                ))
-              ) : (
-                <div className="metric-empty">选择分组字段后，可补充交互因子</div>
-              )}
-            </div>
-          </div>
-
-          <div className="field-block">
-            <label>分析指标</label>
-            <div className="metric-list">
-              {headers ? (
-                headers.columns.map((column) => (
-                  <label className="metric-option" key={column.name}>
-                    <input
-                      type="checkbox"
-                      checked={metricFields.includes(column.name)}
-                      disabled={
-                        column.name === groupField ||
-                        anovaFactorFields.includes(column.name) ||
-                        (!metricFields.includes(column.name) && metricFields.length >= 5)
-                      }
-                      onChange={() => toggleMetric(column.name)}
-                    />
-                    <span>{column.name}</span>
-                    <em>{column.dtype}</em>
-                  </label>
-                ))
-              ) : (
-                <div className="metric-empty">最多选择 5 个因变量</div>
-              )}
-            </div>
-          </div>
-
-          <details className="debug-panel">
-            <summary>
-              <FlaskConical size={16} />
-              更多调试工具
-            </summary>
-            <button className="secondary-button" type="button" onClick={() => void handleGenerateChiSquareDemo()} disabled={isGeneratingDemo}>
-              {isGeneratingDemo ? "生成中" : "生成卡方检验样例"}
-            </button>
-          </details>
-        </aside>
-
-        <section className="main-panel">
-          <div className="workflow-strip" aria-label="工作流">
-            {workflowCards.map(([title, detail]) => (
-              <div className="workflow-card" key={title}>
-                <span>{title}</span>
-                <strong>{detail}</strong>
+          <div className="step-one-grid">
+            <div className="upload-column">
+              <input
+                ref={fileInputRef}
+                className="hidden-input"
+                type="file"
+                accept=".xlsx,.xlsm"
+                onChange={handleFileChange}
+              />
+              <button className="upload-zone primary-upload" type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                <Upload size={22} />
+                <span>{isUploading ? "上传并识别中" : "上传 Excel"}</span>
+                <small>.xlsx / .xlsm</small>
+              </button>
+              <div className="quick-start-card quiet-demo">
+                <span>没有 Excel？</span>
+                <button className="text-button" type="button" onClick={() => void handleGenerateChiSquareDemo()} disabled={isGeneratingDemo}>
+                  <FlaskConical size={15} />
+                  {isGeneratingDemo ? "生成中" : "使用 demo 数据"}
+                </button>
               </div>
-            ))}
+            </div>
+
+            <div className="setup-column">
+              {error && <div className="error-banner">{error}</div>}
+
+              {upload ? (
+                <div className="file-summary prominent">
+                  <span>当前文件</span>
+                  <strong>{upload.filename}</strong>
+                  <small>{formatBytes(upload.file_size)}</small>
+                </div>
+              ) : (
+                <div className="file-summary empty">
+                  <span>当前文件</span>
+                  <strong>等待上传或生成 demo</strong>
+                  <small>文件名会优先展示在这里</small>
+                </div>
+              )}
+
+              <div className="setup-fields">
+                {upload && (
+                  <div className="field-block">
+                    <label>选择 Sheet</label>
+                    <select value={selectedSheet} onChange={(event) => void handleSheetChange(event.target.value)}>
+                      {upload.sheets.map((sheet) => (
+                        <option key={sheet} value={sheet}>
+                          {sheet}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="field-block">
+                  <label>自变量</label>
+                  <select
+                    value={groupField}
+                    disabled={!headers}
+                    onChange={(event) => setGroupField(event.target.value)}
+                  >
+                    <option value="">选择一个自变量</option>
+                    {headers?.columns.map((column) => (
+                      <option key={column.name} value={column.name}>
+                        {column.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="field-block">
+                  <label>因变量</label>
+                  <div className="metric-list">
+                    {headers ? (
+                      headers.columns.map((column) => (
+                        <label className="metric-option" key={column.name}>
+                          <input
+                            type="checkbox"
+                            checked={metricFields.includes(column.name)}
+                            disabled={
+                              column.name === groupField ||
+                              (!metricFields.includes(column.name) && metricFields.length >= 5)
+                            }
+                            onChange={() => toggleMetric(column.name)}
+                          />
+                          <span>{column.name}</span>
+                          <em>{column.dtype}</em>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="metric-empty">上传后选择 1-5 个因变量</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="action-row">
+        </section>
+
+        <section className="step-card step-analysis">
+          <div className="step-heading">
+            <BarChart3 size={20} />
+            <div>
+              <p className="step-label">Step 2</p>
+              <h2>分析 Excel</h2>
+            </div>
             <button className="primary-button" type="button" disabled={!canAnalyze || isAnalyzing} onClick={() => void handleAnalyze()}>
               {isAnalyzing ? "Step 2 分析中" : "Step 2 分析 Excel"}
-            </button>
-            <button className="primary-button muted" type="button" disabled={!canPlot || isPlotting} onClick={() => void handleGenerateCharts()}>
-              {isPlotting ? "Step 3 生成中" : "Step 3 生成图表"}
-            </button>
-            <button className="icon-button" type="button" aria-label="问题上报待补齐" title="问题上报待补齐" disabled>
-              <Bug size={20} />
             </button>
           </div>
 
           <div className="summary-band">
             <div>
-              <p className="eyebrow">分析摘要</p>
+              <p className="step-label">摘要</p>
               <h2>{summaryTitle(headers, analysis)}</h2>
-              {analysis ? (
-                <ExpandableText className="summary-conclusion" text={analysis.pm_conclusion} />
-              ) : (
-                <p className="summary-empty">
-                  先上传 Excel 或生成 demo。完成字段识别后，选择分组字段和 1-5 个指标即可执行分析。
-                </p>
-              )}
+              <p className="summary-empty">
+                {analysis
+                  ? `以「${analysis.requested_group_field}」作为自变量，分析 ${analysis.requested_metric_fields.length} 个因变量。`
+                  : "先完成 Step 1：上传 Excel 或生成 demo，选择一个自变量和至少一个因变量。"}
+              </p>
             </div>
             <span className={analysis?.gate_status === "PASS" ? "warning-chip pass" : "warning-chip"}>
               <AlertTriangle size={16} />
@@ -559,12 +478,12 @@ function App() {
             </span>
           </div>
 
-          <div className="content-grid">
-            <div className="result-table">
+          <div className="analysis-stack">
+            <div className="result-table analysis-table-panel">
               <div className="section-title-row">
                 <div>
-                  <p className="step-label">Step 2</p>
-                  <strong>分析结果</strong>
+                  <p className="step-label">表格</p>
+                  <strong>指标检验结果</strong>
                 </div>
               </div>
               {analysis ? (
@@ -600,52 +519,6 @@ function App() {
                       </div>
                     ))}
                   </div>
-                  <div className="method-note-panel">
-                    <strong>统计方法说明</strong>
-                    {methodNotes(analysis).map((note) => (
-                      <ExpandableText className="method-note" key={note.method} prefix={note.method} text={note.detail} />
-                    ))}
-                  </div>
-                  {hasAnovaRows(analysis) && (
-                    <div className="anova-panel">
-                      <div className="section-title-row flat">
-                        <div>
-                          <p className="step-label">ANOVA</p>
-                          <strong>多自变量方差分析</strong>
-                        </div>
-                        <span>{analysis.requested_anova_factor_fields?.length ? `额外因子 ${analysis.requested_anova_factor_fields.length} 个` : "未选择额外因子"}</span>
-                      </div>
-                      <div className="anova-result-table">
-                        <div className="anova-result-header">
-                          <span>指标</span>
-                          <span>项</span>
-                          <span>类型</span>
-                          <span>F</span>
-                          <span>p 值</span>
-                          <span>显著</span>
-                        </div>
-                        {analysis.tables.anova_tests?.map((row, index) => (
-                          <div className="anova-result-row" key={`${row.metric ?? "anova"}-${row.term ?? index}`}>
-                            <span title={String(row.metric ?? "")}>{row.metric}</span>
-                            <span title={String(row.term ?? row.message ?? "")}>{row.term || row.message}</span>
-                            <span>{row.term_type}</span>
-                            <span>{row.f_value}</span>
-                            <span>{row.p_value}</span>
-                            <strong className={row.significant === "YES" ? "sig-yes" : "sig-no"}>{row.significant}</strong>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="method-note-panel">
-                        <ExpandableText
-                          prefix="ANOVA 说明"
-                          text="ANOVA 使用分组字段加额外自变量作为因子，只对连续数值型因变量计算；结果会分别展示主效应和两两交互项，p<0.05 标记为显著。"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="conclusion-box">
-                    <ExpandableText prefix="PM 结论" text={analysis.pm_conclusion} />
-                  </div>
                 </>
               ) : headers ? (
                 headers.columns.map((column) => (
@@ -666,10 +539,42 @@ function App() {
               )}
             </div>
 
-            <div className="chart-preview">
+            <div className="conclusion-box">
+              <p className="step-label">结论</p>
+              {analysis ? (
+                <>
+                  <h2>PM 结论</h2>
+                  <ExpandableText text={analysis.pm_conclusion} />
+                  <div className="method-note-panel compact-note">
+                    <strong>统计方法说明</strong>
+                    {methodNotes(analysis).map((note) => (
+                      <ExpandableText className="method-note" key={note.method} prefix={note.method} text={note.detail} />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="summary-empty">完成分析后，这里会优先展示给 PM / 面试官阅读的业务结论。</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="step-card step-chart">
+          <div className="step-heading">
+            <LineChart size={20} />
+            <div>
+              <p className="step-label">Step 3</p>
+              <h2>生成图表</h2>
+            </div>
+            <button className="primary-button muted" type="button" disabled={!canPlot || isPlotting} onClick={() => void handleGenerateCharts()}>
+              {isPlotting ? "Step 3 生成中" : "Step 3 生成图表"}
+            </button>
+          </div>
+
+          <div className="chart-preview">
               <div className="section-title-row">
                 <div>
-                  <p className="step-label">Step 3</p>
+                  <p className="step-label">输出</p>
                   <strong>图表输出</strong>
                 </div>
                 {chartCopyStatus && <span className="inline-status">{chartCopyStatus}</span>}
@@ -713,7 +618,7 @@ function App() {
                 <>
                   <div className="chart-placeholder">
                     <BarChart3 size={34} />
-                    <span>{analysis ? "分析已完成，可以生成图表" : groupField ? `分组字段：${groupField}` : "先选择分组字段"}</span>
+                    <span>{analysis ? "分析已完成，可以生成图表" : groupField ? `自变量：${groupField}` : "先选择自变量"}</span>
                   </div>
                   <div className="chart-placeholder soft">
                     <LineChart size={34} />
@@ -727,7 +632,6 @@ function App() {
                   <ExpandableText text={warning.detail} />
                 </div>
               ))}
-            </div>
           </div>
         </section>
       </section>
@@ -813,10 +717,12 @@ function defaultGroupField(headers: HeaderDetection) {
   return preferred?.name ?? "";
 }
 
-function defaultChiSquareMetrics(headers: HeaderDetection) {
-  const preferred = ["outcome_category", "reward_preference"];
-  const available = new Set(headers.columns.map((column) => column.name));
-  return preferred.filter((field) => available.has(field));
+function defaultDemoNumberMetrics(headers: HeaderDetection) {
+  const preferred = ["login_days", "session_minutes"];
+  const numberFields = headers.columns.filter((column) => column.dtype === "number").map((column) => column.name);
+  const availableNumbers = new Set(numberFields);
+  const preferredNumbers = preferred.filter((field) => availableNumbers.has(field));
+  return preferredNumbers.length ? preferredNumbers.slice(0, 5) : numberFields.slice(0, 5);
 }
 
 function orderMetricsBySheet(headers: HeaderDetection | null, metricFields: string[]) {
@@ -840,11 +746,6 @@ function methodNotes(analysis: AnalysisResult) {
     });
 }
 
-function hasAnovaRows(analysis: AnalysisResult) {
-  const rows = analysis.tables.anova_tests ?? [];
-  return rows.length > 0 && !("message" in rows[0] && rows.length === 1 && !analysis.requested_anova_factor_fields?.length);
-}
-
 function buildAnalysisTableText(analysis: AnalysisResult) {
   const columns = [
     ["metric", "指标"],
@@ -864,22 +765,7 @@ function buildAnalysisTableText(analysis: AnalysisResult) {
   const rows = analysis.tables.primary_metric_test.map((row) =>
     columns.map(([key]) => String(row[key] ?? "").replace(/\s+/g, " ")).join("\t")
   );
-  const anovaRows = analysis.tables.anova_tests ?? [];
-  if (!anovaRows.length) return [header, ...rows].join("\n");
-  const anovaColumns = [
-    ["metric", "ANOVA 指标"],
-    ["term", "项"],
-    ["term_type", "类型"],
-    ["df_term", "项自由度"],
-    ["df_error", "误差自由度"],
-    ["f_value", "F 值"],
-    ["p_value", "p 值"],
-    ["significant", "显著"],
-    ["note", "说明"]
-  ];
-  const anovaHeader = anovaColumns.map(([, label]) => label).join("\t");
-  const anovaBody = anovaRows.map((row) => anovaColumns.map(([key]) => String(row[key] ?? "").replace(/\s+/g, " ")).join("\t"));
-  return [header, ...rows, "", anovaHeader, ...anovaBody].join("\n");
+  return [header, ...rows].join("\n");
 }
 
 async function detectHeaders(uploadId: string, sheetName: string) {

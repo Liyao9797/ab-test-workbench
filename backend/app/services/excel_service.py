@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import shutil
 from pathlib import Path
@@ -94,6 +95,7 @@ def detect_headers(upload_id: str, sheet_name: str, header_row: int | None, prev
 def create_chi_square_demo_upload() -> dict[str, object]:
     ensure_storage_dirs()
     upload_id = f"upl_{uuid4().hex[:12]}"
+    rng = random.Random(uuid4().hex)
     upload_dir = STORAGE_ROOT / "uploads" / upload_id
     upload_dir.mkdir(parents=True, exist_ok=False)
     original_path = upload_dir / "original.xlsx"
@@ -101,26 +103,44 @@ def create_chi_square_demo_upload() -> dict[str, object]:
     rows = []
     channels = ["organic", "ads_meta", "ads_google", "ads_tiktok"]
     platforms = ["ios", "android"]
-    outcome_a = ["low_engagement"] * 96 + ["medium_engagement"] * 144 + ["high_engagement"] * 80
-    outcome_b = ["low_engagement"] * 64 + ["medium_engagement"] * 128 + ["high_engagement"] * 128
-    reward_a = ["coins"] * 128 + ["energy"] * 112 + ["skin"] * 80
-    reward_b = ["coins"] * 96 + ["energy"] * 104 + ["skin"] * 120
+    outcome_categories = ["low_engagement", "medium_engagement", "high_engagement"]
+    reward_categories = ["coins", "energy", "skin"]
+    session_types = ["short", "medium", "long"]
+    group_configs = {
+        "group_a": {
+            "outcome_weights": [0.30, 0.45, 0.25],
+            "reward_weights": [0.40, 0.35, 0.25],
+            "click_rate": 0.50,
+            "login_bonus_rate": 0.05,
+        },
+        "group_b": {
+            "outcome_weights": [0.20, 0.40, 0.40],
+            "reward_weights": [0.30, 0.33, 0.37],
+            "click_rate": 0.60,
+            "login_bonus_rate": 0.25,
+        },
+    }
 
     uid_seed = 2800000000
-    for group, outcomes, rewards in [("group_a", outcome_a, reward_a), ("group_b", outcome_b, reward_b)]:
-        for index, (outcome, reward) in enumerate(zip(outcomes, rewards)):
+    for group, config in group_configs.items():
+        row_count = rng.randint(300, 360)
+        click_rate = _jitter_rate(config["click_rate"], rng)
+        for index in range(row_count):
+            outcome = rng.choices(outcome_categories, weights=config["outcome_weights"], k=1)[0]
+            reward = rng.choices(reward_categories, weights=config["reward_weights"], k=1)[0]
             rows.append(
                 {
                     "uid": str(uid_seed + len(rows)),
                     "group_id": group,
-                    "is_new_user": 1 if index % 2 == 0 else 0,
-                    "channel": channels[index % len(channels)],
-                    "platform": platforms[index % len(platforms)],
+                    "is_new_user": 1 if rng.random() < 0.50 else 0,
+                    "channel": rng.choice(channels),
+                    "platform": rng.choice(platforms),
                     "outcome_category": outcome,
                     "reward_preference": reward,
-                    "session_type": "short" if index % 3 == 0 else ("medium" if index % 3 == 1 else "long"),
-                    "feature_clicked": 1 if (group == "group_b" and index % 10 < 6) or (group == "group_a" and index % 10 < 5) else 0,
-                    "login_days": 2 + (index % 5) + (1 if group == "group_b" and index % 4 == 0 else 0),
+                    "session_type": rng.choice(session_types),
+                    "feature_clicked": 1 if rng.random() < click_rate else 0,
+                    "login_days": rng.randint(2, 6) + (1 if rng.random() < config["login_bonus_rate"] else 0),
+                    "session_minutes": round(rng.uniform(18, 42) + (4 if group == "group_b" else 0), 2),
                 }
             )
 
@@ -136,7 +156,7 @@ def create_chi_square_demo_upload() -> dict[str, object]:
 
     metadata = {
         "upload_id": upload_id,
-        "filename": "chi_square_demo_ab_test.xlsx",
+        "filename": f"chi_square_demo_ab_test_{upload_id[-6:]}.xlsx",
         "file_size": original_path.stat().st_size,
         "sheets": ["chi_square_demo", "category_summary"],
         "selected_sheet": "chi_square_demo",
@@ -144,6 +164,10 @@ def create_chi_square_demo_upload() -> dict[str, object]:
     }
     _write_json(upload_dir / "metadata.json", metadata)
     return metadata
+
+
+def _jitter_rate(rate: float, rng: random.Random) -> float:
+    return min(max(rate + rng.uniform(-0.03, 0.03), 0.01), 0.99)
 
 
 def _detect_header_row(sheet) -> int:

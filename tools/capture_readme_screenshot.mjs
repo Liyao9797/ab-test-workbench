@@ -21,14 +21,28 @@ async function main() {
     mobile: false,
   });
   await cdp.send("Page.navigate", { url: targetUrl });
-  await waitFor(cdp, () => document.body.innerText.includes("产品增长实验分析工作台"));
-  await clickButton(cdp, "生成 demo");
+  await waitFor(cdp, () => document.body.innerText.includes("A/B实验显著性分析"));
+  await clickButton(cdp, "使用 demo 数据");
   await waitFor(cdp, () => document.body.innerText.includes("feature_clicked"));
   await clickButton(cdp, "Step 2 分析 Excel");
   await waitFor(cdp, () => document.body.innerText.includes("PM 结论") || document.body.innerText.includes("PASS_WITH_WARNING"));
   await clickButton(cdp, "Step 3 生成图表");
   await waitFor(cdp, () => document.querySelectorAll(".chart-card img").length >= 1);
   await sleep(800);
+  await cdp.send("Runtime.evaluate", {
+    expression: "window.scrollTo({ top: 0, left: 0, behavior: 'instant' })",
+  });
+  await sleep(300);
+  await cdp.send("Runtime.evaluate", {
+    expression: `
+      (() => {
+        const style = document.createElement("style");
+        style.textContent = "html, body { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }";
+        document.head.appendChild(style);
+      })()
+    `,
+  });
+  await sleep(100);
 
   const screenshot = await cdp.send("Page.captureScreenshot", {
     format: "png",
