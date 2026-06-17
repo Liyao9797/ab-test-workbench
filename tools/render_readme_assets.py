@@ -25,6 +25,47 @@ from app.services.chart_service import (  # noqa: E402
 W, H = 1400, 900
 
 
+def draw_status_badge(draw: ImageDraw.ImageDraw, text: str, center_x: int, center_y: int, color: tuple[int, int, int], fill: tuple[int, int, int]) -> None:
+    badge_font = font(15, True)
+    text_box = draw.textbbox((0, 0), text, font=badge_font)
+    text_w = text_box[2] - text_box[0]
+    badge_w = max(118, text_w + 34)
+    badge_h = 30
+    x0 = center_x - badge_w / 2
+    x1 = center_x + badge_w / 2
+    y0 = center_y - badge_h / 2
+    y1 = center_y + badge_h / 2
+    draw.rounded_rectangle((x0, y0, x1, y1), radius=8, fill=fill, outline=color, width=2)
+    draw.text((center_x, center_y + 1), text, fill=color, font=badge_font, anchor="mm")
+
+
+def fit_font_to_width(draw: ImageDraw.ImageDraw, text: str, max_width: int, base_size: int, bold: bool = False, min_size: int = 13):
+    size = base_size
+    current_font = font(size, bold)
+    while size > min_size and draw.textbbox((0, 0), text, font=current_font)[2] > max_width:
+        size -= 1
+        current_font = font(size, bold)
+    return current_font
+
+
+def draw_centered_text_group(draw: ImageDraw.ImageDraw, lines: list[tuple[str, int, tuple[int, int, int], bool]], box: tuple[int, int, int, int], max_width: int, gap: int) -> None:
+    center_x = (box[0] + box[2]) // 2
+    center_y = (box[1] + box[3]) // 2
+    fitted = []
+    total_height = 0
+    for text, size, fill, bold in lines:
+        current_font = fit_font_to_width(draw, text, max_width, size, bold)
+        bbox = draw.textbbox((0, 0), text, font=current_font)
+        height = bbox[3] - bbox[1]
+        fitted.append((text, current_font, fill, height))
+        total_height += height
+    total_height += gap * (len(fitted) - 1)
+    y = center_y - total_height / 2
+    for text, current_font, fill, height in fitted:
+        draw.text((center_x, y + height / 2), text, fill=fill, font=current_font, anchor="mm")
+        y += height + gap
+
+
 def render_primary_metric(output_path: Path) -> None:
     image = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(image)
@@ -79,18 +120,19 @@ def render_data_quality_gate(output_path: Path) -> None:
     image = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(image)
 
-    draw_fit_text(draw, "Data Quality Gate", (70, 52), 1260, TEXT, 44, bold=True)
-    draw_fit_text(draw, "Overall status: PASS_WITH_WARNING", (72, 122), 1260, MUTED, 26)
+    draw_fit_text(draw, "Data Quality Gate", (70, 48), 1260, TEXT, 44, bold=True)
 
-    draw.rounded_rectangle((90, 205, 1310, 370), radius=28, fill=(255, 249, 238), outline=(240, 85, 15), width=4)
-    draw_fit_text(draw, "PASS_WITH_WARNING", (140, 260), 1060, (240, 85, 15), 48, bold=True)
-    draw_fit_text(
+    summary_box = (110, 130, 1290, 250)
+    draw.rounded_rectangle(summary_box, radius=22, fill=(255, 249, 238), outline=(240, 85, 15), width=3)
+    draw_centered_text_group(
         draw,
-        "Hard validation checks passed; warning items require PM attention.",
-        (140, 332),
-        1080,
-        TEXT,
-        26,
+        [
+            ("PASS_WITH_WARNING", 42, (240, 85, 15), True),
+            ("Hard validation checks passed; warning items require PM attention.", 23, TEXT, False),
+        ],
+        summary_box,
+        980,
+        8,
     )
 
     checks = [
@@ -103,33 +145,34 @@ def render_data_quality_gate(output_path: Path) -> None:
         ("PASS", "LTV amount >= ARPU", "A ltv=2.02, arpu=1.24; B ltv=2.09, arpu=1.33"),
     ]
 
-    table_x0, table_y0, table_x1 = 95, 430, 1305
-    row_h = 52
+    table_x0, table_y0, table_x1 = 80, 295, 1320
+    row_h = 58
     status_w = 175
-    check_w = 375
-    table_h = 44 + len(checks) * row_h
+    check_w = 390
+    header_h = 46
+    table_h = header_h + len(checks) * row_h
     draw.rounded_rectangle((table_x0, table_y0, table_x1, table_y0 + table_h), radius=16, fill=WHITE, outline=(220, 226, 232), width=2)
-    draw.rectangle((table_x0 + 1, table_y0 + 1, table_x1 - 1, table_y0 + 44), fill=(244, 247, 248))
+    draw.rectangle((table_x0 + 1, table_y0 + 1, table_x1 - 1, table_y0 + header_h), fill=(244, 247, 248))
     draw.text((table_x0 + 32, table_y0 + 14), "Status", fill=MUTED, font=font(18, True))
     draw.text((table_x0 + status_w + 28, table_y0 + 14), "Check", fill=MUTED, font=font(18, True))
     draw.text((table_x0 + status_w + check_w + 28, table_y0 + 14), "Result", fill=MUTED, font=font(18, True))
 
     for index, (status, check, result) in enumerate(checks):
-        y = table_y0 + 44 + index * row_h
+        y = table_y0 + header_h + index * row_h
         if index:
             draw.line((table_x0, y, table_x1, y), fill=(229, 234, 238), width=1)
         is_warning = status == "WARNING"
         color = (240, 85, 15) if is_warning else (25, 170, 80)
         fill = (255, 248, 239) if is_warning else (239, 252, 244)
-        draw.rounded_rectangle((table_x0 + 24, y + 10, table_x0 + 138, y + 39), radius=8, fill=fill, outline=color, width=2)
-        draw.text((table_x0 + 81, y + 25), status, fill=color, font=font(16, True), anchor="mm")
-        draw_fit_text(draw, check, (table_x0 + status_w + 28, y + 14), check_w - 48, TEXT, 19, bold=is_warning)
-        draw_fit_text(draw, result, (table_x0 + status_w + check_w + 28, y + 14), 610, TEXT, 18)
+        row_center_y = y + row_h // 2
+        draw_status_badge(draw, status, table_x0 + status_w // 2, row_center_y, color, fill)
+        draw_fit_text(draw, check, (table_x0 + status_w + 28, row_center_y - 11), check_w - 48, TEXT, 20, bold=is_warning)
+        draw_fit_text(draw, result, (table_x0 + status_w + check_w + 28, row_center_y - 11), 630, TEXT, 19)
 
     draw_fit_text(
         draw,
         "Primary metric conclusion remains tied to Stage 2; warnings are shown separately.",
-        (70, 862),
+        (70, 803),
         1260,
         TEXT,
         22,

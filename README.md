@@ -56,7 +56,7 @@
 
 ![Primary metric chart](./docs/assets/readme/primary-metric-20260616.png)
 
-![Data quality gate chart](./docs/assets/readme/data-quality-gate-20260616.png)
+![Data quality gate chart](./docs/assets/readme/data-quality-gate-20260617.png)
 
 ## 技术栈
 
